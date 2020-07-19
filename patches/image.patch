@@ -1,0 +1,150 @@
+--- slock.c	2020-07-15 02:23:01.275742104 +0530
++++ slock.c.new	2020-07-15 02:22:39.539076522 +0530
+@@ -18,11 +18,13 @@
+ #include <X11/keysym.h>
+ #include <X11/Xlib.h>
+ #include <X11/Xutil.h>
++#include <Imlib2.h>
+
+ #include "arg.h"
+ #include "util.h"
+
+ char *argv0;
++Imlib_Image image;
+
+ enum {
+ 	INIT,
+@@ -35,6 +37,7 @@
+ 	int screen;
+ 	Window root, win;
+ 	Pixmap pmap;
++	Pixmap bgmap;
+ 	unsigned long colors[NUMCOLS];
+ };
+
+@@ -190,9 +193,15 @@
+ 			color = len ? INPUT : ((failure || failonclear) ? FAILED : INIT);
+ 			if (running && oldc != color) {
+ 				for (screen = 0; screen < nscreens; screen++) {
++                                        if (locks[screen]->bgmap)
++                                            XSetWindowBackgroundPixmap(dpy, locks[screen]->win, locks[screen]->bgmap);
++                                        else {
+ 					XSetWindowBackground(dpy,
+ 					                     locks[screen]->win,
+ 					                     locks[screen]->colors[color]);
++                                        }
++
++
+ 					XClearWindow(dpy, locks[screen]->win);
+ 				}
+ 				oldc = color;
+@@ -234,7 +243,28 @@
+
+ 	lock->screen = screen;
+ 	lock->root = RootWindow(dpy, lock->screen);
++        lock->bgmap = 0;
++
++	if(image) {
++		lock->bgmap = XCreatePixmap(dpy, lock->root, DisplayWidth(dpy, lock->screen), DisplayHeight(dpy, lock->screen), DefaultDepth(dpy, lock->screen));
++		imlib_context_set_image(image);
++		imlib_context_set_display(dpy);
++		imlib_context_set_visual(DefaultVisual(dpy, lock->screen));
++		imlib_context_set_colormap(DefaultColormap(dpy, lock->screen));
++		imlib_context_set_drawable(lock->bgmap);
++		imlib_render_image_on_drawable(0, 0);
++		imlib_free_image();
++	}
++
++ 	/* init */
++ 	wa.override_redirect = 1;
++ 	wa.background_pixel = BlackPixel(dpy, lock->screen);
++ 	lock->win = XCreateWindow(dpy, lock->root, 0, 0, DisplayWidth(dpy, lock->screen), DisplayHeight(dpy, lock->screen),
++ 			0, DefaultDepth(dpy, lock->screen), CopyFromParent,
++ 			DefaultVisual(dpy, lock->screen), CWOverrideRedirect | CWBackPixel, &wa);
+
++	if(lock->bgmap)
++		XSetWindowBackgroundPixmap(dpy, lock->win, lock->bgmap);
+ 	for (i = 0; i < NUMCOLS; i++) {
+ 		XAllocNamedColor(dpy, DefaultColormap(dpy, lock->screen),
+ 		                 colorname[i], &color, &dummy);
+@@ -251,6 +281,10 @@
+ 	                          CopyFromParent,
+ 	                          DefaultVisual(dpy, lock->screen),
+ 	                          CWOverrideRedirect | CWBackPixel, &wa);
++
++	if(lock->bgmap)
++		XSetWindowBackgroundPixmap(dpy, lock->win, lock->bgmap);
++
+ 	lock->pmap = XCreateBitmapFromData(dpy, lock->win, curs, 8, 8);
+ 	invisible = XCreatePixmapCursor(dpy, lock->pmap, lock->pmap,
+ 	                                &color, &color, 0, 0);
+@@ -315,13 +349,27 @@
+ 	Display *dpy;
+ 	int s, nlocks, nscreens;
+
+-	ARGBEGIN {
+-	case 'v':
+-		fprintf(stderr, "slock-"VERSION"\n");
+-		return 0;
+-	default:
+-		usage();
+-	} ARGEND
++        for (int i = 1; i < argc; ++i)
++        {
++                if (argv[i][0] == '-' && argv[i][2] == '\0')
++                {
++                        switch(argv[i][1])
++                        {
++                                case 'v':
++                                        usage();
++                                        break;
++                                case 'i':
++                                        ++i;
++                                        image = imlib_load_image(argv[i]);
++                                        if (!image)
++                                                image = NULL;
++                                        break;
++                                default:
++                                        usage();
++                                        break;
++                        }
++                }
++        }
+
+ 	/* validate drop-user and -group */
+ 	errno = 0;
+@@ -374,22 +422,9 @@
+ 	if (nlocks != nscreens)
+ 		return 1;
+
+-	/* run post-lock command */
+-	if (argc > 0) {
+-		switch (fork()) {
+-		case -1:
+-			die("slock: fork failed: %s\n", strerror(errno));
+-		case 0:
+-			if (close(ConnectionNumber(dpy)) < 0)
+-				die("slock: close: %s\n", strerror(errno));
+-			execvp(argv[0], argv);
+-			fprintf(stderr, "slock: execvp %s: %s\n", argv[0], strerror(errno));
+-			_exit(1);
+-		}
+-	}
+-
+ 	/* everything is now blank. Wait for the correct password */
+ 	readpw(dpy, &rr, locks, nscreens, hash);
+
+ 	return 0;
+ }
++// % vim: softtabstop=8 shiftwidth=8
+--- config.mk	2020-07-15 02:23:01.275742104 +0530
++++ config.mk.new	2020-07-15 02:22:46.139076195 +0530
+@@ -12,7 +12,7 @@
+ 
+ # includes and libs
+ INCS = -I. -I/usr/include -I${X11INC}
+-LIBS = -L/usr/lib -lc -lcrypt -L${X11LIB} -lX11 -lXext -lXrandr
++LIBS = -L/usr/lib -lc -lcrypt -L${X11LIB} -lX11 -lXext -lXrandr -lImlib2
+ 
+ # flags
+ CPPFLAGS = -DVERSION=\"${VERSION}\" -D_DEFAULT_SOURCE -DHAVE_SHADOW_H
