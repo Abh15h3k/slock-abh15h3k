@@ -24,7 +24,7 @@ config.h:
 	@echo creating $@ from config.def.h
 	@cp config.def.h $@
 	sed -i "s/USERNAME/$$(whoami)/" config.h
-	sed -i "s/GROUPNAME/$$(groups | awk '{print $$1}')/" config.h
+	sed -i "s/GROUPNAME/$$(id -gn)/" config.h
 
 
 slock: ${OBJ}
