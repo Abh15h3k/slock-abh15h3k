@@ -23,7 +23,7 @@ ${OBJ}: config.h config.mk arg.h util.h
 config.h:
 	@echo creating $@ from config.def.h
 	@cp config.def.h $@
-	sed -i "s/USERNAME/$$(whoami)/" config.h
+	sed -i "s/USERNAME/$$(id -un)/" config.h
 	sed -i "s/GROUPNAME/$$(id -gn)/" config.h
 
 
