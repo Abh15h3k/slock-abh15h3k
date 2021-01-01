@@ -23,6 +23,7 @@
 #include "arg.h"
 #include "util.h"
 
+char display_str[8] = "";
 char *argv0;
 Imlib_Image image;
 
@@ -365,6 +366,16 @@ main(int argc, char **argv) {
 	Display *dpy;
 	int s, nlocks, nscreens;
 
+    memset(display_str, 0, 8);
+    FILE *file = fopen("/tmp/display", "r");
+    if(file != NULL) {
+            fread(display_str, 8, 1, file);
+            fclose(file);
+            for(int i = 0; i < 8; ++i)
+                    if(display_str[i] < ' ')
+                            display_str[i] = 0;
+    }
+
         for (int i = 1; i < argc; ++i)
         {
                 if (argv[i][0] == '-' && argv[i][2] == '\0')
@@ -408,7 +419,8 @@ main(int argc, char **argv) {
 	if (!crypt("", hash))
 		die("slock: crypt: %s\n", strerror(errno));
 
-	if (!(dpy = XOpenDisplay(NULL)))
+
+	if (!(dpy = XOpenDisplay(display_str)))
 		die("slock: cannot open display\n");
 
 	/* drop privileges */
