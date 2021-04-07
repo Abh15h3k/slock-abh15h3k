@@ -18,6 +18,13 @@ Afterwards enter the following command to build and install slock
 
     make clean install
 
+Usage
+-----
+
+To simply run slock: `slock`
+To run slock with a background image: `slock -i <path-to-image>`
+
+
 
 Running slock
 -------------
