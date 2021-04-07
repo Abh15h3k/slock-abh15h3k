@@ -24,8 +24,4 @@ Usage
 To simply run slock: `slock`
 To run slock with a background image: `slock -i <path-to-image>`
 
-
-
-Running slock
--------------
-Simply invoke the 'slock' command. To get out of it, enter your password.
+slock will also read /tmp/display incase $DISPLAY is not set (running from ssh).
